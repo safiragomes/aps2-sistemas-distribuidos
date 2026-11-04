@@ -68,3 +68,70 @@ def round_metrics_inplace(metrics: Dict[str, Any]):
         cpu["overall"] = round(cpu["overall"], 1)
     if "cores" in cpu:
         cpu["cores"] = [round(c, 1) for c in cpu["cores"]]
+
+def main():
+    args = parse_args()
+    server_addr = (args.host, args.port)
+
+    # Inicializa socket focado no protocolo de datagramas
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        ep = Endpoint(sock)
+    except OSError as e:
+        print(f"Erro fatal ao criar socket UDP: {e}")
+        sys.exit(1)
+
+    # Executa a rotina de handshaking/registro
+    if not register_agent(ep, server_addr, args.name, args.interval):
+        ep.close()
+        sys.exit(1)
+
+    seq = 1
+    
+    try:
+        while True:
+            # Coleta e arredonda percentuais
+            metrics = collect_metrics()
+            round_metrics_inplace(metrics)
+            
+            # Adiciona campos estruturais de protocolo e envia
+            metrics["name"] = args.name
+            metrics["seq"] = seq
+            
+            try:
+                ep.send(metrics, server_addr)
+                print(f"[{time.strftime('%H:%M:%S')}] METRICS seq={seq} enviado - CPU: {metrics['cpu']['overall']}%")
+            except OSError as e:
+                print(f"[Erro] Falha temporária ao enviar métrica de seq={seq}: {e}")
+            
+            # Prepara o próximo identificador 
+            seq += 1
+
+            # Micro-laço de espera: ao invés de travar a thread num time.sleep(interval)
+            # agente escuta a rede durante os segundos de intervalo para tratar quedas/resets no servidor
+            end_time = time.time() + args.interval
+            while time.time() < end_time:
+                remaining = end_time - time.time()
+                if remaining <= 0:
+                    break
+                
+                ep.sock.settimeout(remaining)
+                try:
+                    msg, addr = ep.receive()
+                    if msg and addr == server_addr:
+                        # Se o servidor reiniciar e perder a memória RAM: 'not registered'
+                        # O agente capta e refaz o registro preservando o 'seq'
+                        if msg.get("type") == "ERROR" and msg.get("reason") == "not registered":
+                            print("[Aviso] O Servidor não reconhece o agente. Refazendo registro...")
+                            if not register_agent(ep, server_addr, args.name, args.interval):
+                                print("[Erro] Impossível refazer o registro automático. Saindo.")
+                                sys.exit(1)
+                except socket.timeout:
+                    # Timeout esperado - apenas o tempo de espera do intervalo passou
+                    pass
+                except OSError:
+                    # Impede que quedas bruscas de link matem o cliente durante o recv
+                    break
+
+    except KeyboardInterrupt:
+        print()
