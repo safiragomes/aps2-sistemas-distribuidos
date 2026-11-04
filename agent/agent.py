@@ -134,4 +134,19 @@ def main():
                     break
 
     except KeyboardInterrupt:
-        print()
+        print("\n[Saída] Sinal de interrupção detectado. Encerrando agente...")
+        bye_msg = {"type": "BYE", "name": args.name}
+        try:
+            ep.send(bye_msg, server_addr)
+            print("[Saída] Mensagem BYE enviada.")
+        except OSError:
+            pass  # Omite stack trace se a placa de rede já estiver inativa
+            
+    finally:
+        # Fechamento garantindo devolução da porta ao SO
+        ep.close()
+        print("Execução finalizada.")
+
+
+if __name__ == "__main__":
+    main()
