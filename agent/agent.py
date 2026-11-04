@@ -60,3 +60,11 @@ def register_agent(ep: Endpoint, server_addr: Tuple[str, int], name: str, interv
     # Esgotou as 3 tentativas e continuou caindo no timeout
     print("[Registro] Falha crítica: O servidor não responde após 3 tentativas.")
     return False
+
+# Métricas de CPU com 1 casa decimal
+def round_metrics_inplace(metrics: Dict[str, Any]):
+    cpu = metrics.get("cpu", {})
+    if "overall" in cpu:
+        cpu["overall"] = round(cpu["overall"], 1)
+    if "cores" in cpu:
+        cpu["cores"] = [round(c, 1) for c in cpu["cores"]]
