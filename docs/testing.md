@@ -1,109 +1,223 @@
+# Roteiro e resultados dos testes ‚Äî APS 02, Equipe 06 (UDP)
 
-Roteiro de Testes ? Equipe 06
-1. Objetivo
-Este documento registra os testes realizados no sistema de monitoramento de desempenho da Equipe 06, que utiliza comunicaÁ„o UDP entre agentes e servidor.
+## 1. Objetivo
 
-O objetivo È verificar o registro dos agentes, o recebimento das mÈtricas, a identificaÁ„o de pacotes perdidos e duplicados, a remoÁ„o de agentes por mensagem BYE ou por timeout e o tratamento de datagramas inv·lidos.
+Este documento re√∫ne os procedimentos e os resultados observados nos testes do sistema distribu√≠do de monitoramento de CPU e mem√≥ria da Equipe 06. O sistema utiliza sockets UDP para registrar agentes, receber m√©tricas periodicamente e apresentar informa√ß√µes em um painel no terminal.
 
-Os resultados descritos como Aprovado foram observados nos logs e nas saÌdas de terminal compartilhadas durante a execuÁ„o. Os cen·rios identificados como N„o realizado ainda precisam ser executados para completar toda a cobertura solicitada no planejamento da APS.
+Foram verificados o protocolo de mensagens, o gerenciamento dos agentes, a contagem de perdas e duplica√ß√µes por n√∫mero de sequ√™ncia (`seq`), a remo√ß√£o por `BYE` ou *timeout*, a toler√¢ncia a datagramas inv√°lidos e o funcionamento com m√∫ltiplos agentes. Os resultados abaixo se referem somente a execu√ß√µes registradas; cen√°rios sem evid√™ncia espec√≠fica s√£o identificados separadamente.
 
-2. Ambiente de testes
-Linguagem: Python.
-Protocolo: UDP.
-Sistema operacional utilizado: Windows.
-EndereÁo local de teste: 127.0.0.1.
-Porta padr„o do servidor: 5000.
-Intervalo utilizado na simulaÁ„o: 5 segundos.
-Quantidade de agentes na simulaÁ„o principal: 10.
-DuraÁ„o configurada para a simulaÁ„o principal: 60 segundos.
-Painel desativado durante os testes do servidor, utilizando --no-dashboard.
+## 2. Ambientes utilizados
 
-3. Como executar os testes
-3.1. Iniciar o servidor manualmente
-Em um terminal, na raiz do repositÛrio, executar:
+Os registros incluem execu√ß√µes realizadas em dois ambientes:
 
-python -m server.server --no-dashboard
-3.2. Executar a simulaÁ„o com dez agentes
-Em outro terminal, na raiz do repositÛrio, executar:
+| Caracter√≠stica | Execu√ß√£o em Windows | Execu√ß√£o em macOS |
+|---|---|---|
+| Sistema operacional | Windows | macOS |
+| Vers√£o do Python | N√£o informada no registro | 3.9.6 |
+| Biblioteca externa | `psutil` | `psutil` 7.2.2 |
+| Protocolo | UDP | UDP |
+| Endere√ßo usado | `127.0.0.1` | `127.0.0.1` |
+| Porta do servidor manual | `5000` | `5000` |
+| Simula√ß√£o principal | 10 agentes, 60 s, intervalo de 5 s | 10 agentes, 60 s, intervalo de 2 s |
+| Teste autom√°tico do servidor | Porta UDP dispon√≠vel (`58666` no registro) | Porta UDP dispon√≠vel (`55198` na execu√ß√£o) |
+| Visualiza√ß√£o | Testes do servidor com `--no-dashboard` | Servidor tamb√©m testado com painel ativo |
 
-python -m tests.simulate_agents --agents 10 --duration 60 --interval 5 --host 127.0.0.1 --port 5000
-3.3. Executar os testes autom·ticos do servidor
-O script tests/check_server.py inicia e encerra o processo do servidor automaticamente. Portanto, n„o È necess·rio iniciar outro servidor antes de executar:
 
-python tests/check_server.py
+Os agentes e o servidor foram testados localmente. O endere√ßo `127.0.0.1` n√£o comprova comunica√ß√£o entre computadores f√≠sicos distintos.
 
-4. Testes automatizados do servidor (tarefa 4.2)
-Os testes foram executados com o comando python tests/check_server.py. O script iniciou o servidor em uma porta UDP disponÌvel (porta 58666 na execuÁ„o registrada), enviou as mensagens de teste e verificou as respostas e os logs do servidor.
+## 3. Comandos para reprodu√ß√£o
 
-Caso	Como executar	Resultado esperado	Resultado obtido
-Registro de agente novo	Executar python tests/check_server.py	O servidor responde com OK para um nome ainda n„o registrado.	Aprovado. O terminal apresentou [OK] Registro de agente novo.
-Nome repetido em outro endereÁo	Executar python tests/check_server.py	O servidor responde com ERROR e motivo name already in use.	Aprovado. O terminal apresentou [OK] Nome repetido foi recusado.
-METRICS de agente n„o registrado	Executar python tests/check_server.py	O servidor responde com ERROR e motivo not registered.	Aprovado. O terminal apresentou [OK] METRICS de agente nao registrado.
-Pacotes perdidos	Registrar um agente e enviar as sequÍncias 1, 2 e 5.	O servidor contabiliza dois pacotes perdidos.	Aprovado. O log do servidor registrou 2 pacote(s) perdido(s) e o teste confirmou essa ocorrÍncia.
-Mensagem duplicada	ApÛs enviar seq=5, enviar novamente seq=5.	A segunda mensagem È descartada e identificada como duplicada ou fora de ordem.	Aprovado. O log registrou seq 5 duplicado ou fora de ordem.
-RemoÁ„o por BYE	Registrar um agente, enviar BYE e depois tentar enviar METRICS pelo mesmo socket.	O agente È removido; a mÈtrica posterior recebe ERROR not registered.	Aprovado. O teste confirmou a resposta not registered apÛs o envio de BYE.
-RemoÁ„o por timeout	Registrar um agente com intervalo de 1 segundo, interromper os envios e aguardar mais de 3 intervalos.	O servidor remove o agente por timeout; uma mÈtrica posterior recebe ERROR not registered.	Aprovado. ApÛs a espera de aproximadamente 4,5 segundos, o teste confirmou ERROR not registered. O log tambÈm registrou a remoÁ„o por timeout.
-Datagramas inv·lidos	Enviar bytes que n„o representam JSON v·lido e, em seguida, tentar registrar outro agente.	O servidor ignora o datagrama inv·lido, permanece ativo e aceita o novo registro.	Aprovado. O registro posterior foi aceito e o servidor continuou ativo. O log registrou o datagrama inv·lido.
-4.1. SaÌda observada dos testes autom·ticos
-A execuÁ„o terminou com a mensagem:
+Execute os comandos na raiz do reposit√≥rio. No macOS, foi utilizado `python3`; em sistemas em que o execut√°vel se chama `python`, ele pode ser usado no lugar.
 
-TODOS OS TESTES PASSARAM!
-TambÈm foram apresentadas confirmaÁıes para o registro novo, nome repetido, agente n„o registrado, perdas, duplicaÁ„o, BYE, timeout e datagrama inv·lido.
+### 3.1. Instala√ß√£o
 
-5. SimulaÁ„o com m˙ltiplos agentes (tarefa 4.1)
-A simulaÁ„o principal foi executada com dez agentes, duraÁ„o configurada de 60 segundos e intervalo de 5 segundos, utilizando os comandos da seÁ„o 3.2.
+```bash
+python3 -m pip install -r requirements.txt
+```
 
-5.1. Resultados observados
-Caso	Comportamento esperado	Resultado obtido
-Registro dos dez agentes	Os dez agentes devem ser registrados no servidor.	Aprovado. Os agentes agent-1 atÈ agent-10 apareceram no log como registrados.
-Agente 3 ? timeout	O agente para de enviar mensagens e n„o envia BYE; o servidor deve removÍ-lo por timeout.	Aprovado. O servidor registrou agent-3 ficou sem enviar nada, removendo (timeout).
-Agente 5 ? perda de mensagens	O agente deixa de transmitir aproximadamente 30% das mensagens, mas continua incrementando o n˙mero de sequÍncia.	Aprovado. O servidor identificou trÍs ocorrÍncias de um pacote perdido, totalizando trÍs pacotes perdidos nas mensagens observadas atÈ os seq 4, 7 e 10.
-Agente 7 ? duplicaÁ„o	O agente retransmite ocasionalmente uma mensagem com o mesmo n˙mero de sequÍncia.	Aprovado. O servidor identificou duplicaÁıes nos seq 4, 8 e 12, totalizando trÍs mensagens duplicadas.
-Agente 8 ? REGISTER repetido	O agente envia REGISTER duas vezes pelo mesmo socket; o servidor aceita o registro repetido sem criar outro agente.	Aprovado quanto ‡ aceitaÁ„o do registro repetido. O log mostrou o mesmo agente registrado duas vezes com o mesmo endereÁo e porta. A preservaÁ„o dos contadores n„o foi verificada separadamente nessa simulaÁ„o.
-Agente 9 ? datagrama inv·lido	O agente envia ocasionalmente dados que n„o s„o um JSON v·lido; o servidor n„o deve cair.	Aprovado. O servidor registrou datagramas inv·lidos e continuou processando os demais agentes.
-Demais agentes ? encerramento	Os agentes normais devem encerrar enviando BYE.	Aprovado. O log registrou a saÌda por BYE dos agentes agent-1, agent-2, agent-4, agent-5, agent-6, agent-7, agent-8, agent-9 e agent-10.
-5.2. Trechos dos logs observados
-Exemplos de mensagens registradas pelo servidor durante a simulaÁ„o:
+Na execu√ß√£o em macOS, o `pip` confirmou que `psutil` 7.2.2 j√° estava instalado.
 
-agent-3 ficou sem enviar nada, removendo (timeout)
-agent-5: 1 pacote(s) perdido(s) atÈ o seq 4
-agent-5: 1 pacote(s) perdido(s) atÈ o seq 7
-agent-5: 1 pacote(s) perdido(s) atÈ o seq 10
-agent-7: seq 4 duplicado ou fora de ordem
-agent-7: seq 8 duplicado ou fora de ordem
-agent-7: seq 12 duplicado ou fora de ordem
-datagrama inv·lido de 127.0.0.1
-O endereÁo e a porta de origem do datagrama inv·lido podem variar entre execuÁıes.
+### 3.2. Testes automatizados
 
-6. Testes complementares previstos no roteiro da APS
-Os casos abaixo fazem parte do roteiro solicitado para a tarefa 4.3. Eles n„o foram todos demonstrados nos logs e saÌdas compartilhados atÈ a elaboraÁ„o deste documento. Por isso, os resultados n„o foram marcados como aprovados sem evidÍncia.
+```bash
+python3 tests/testProtocol.py
+python3 tests/testState.py
+python3 tests/testDashboard.py
+python3 tests/check_server.py
+```
 
-Caso	Como executar	Resultado esperado	Resultado obtido
-Um agente	Iniciar o servidor e executar python -m agent.agent --host 127.0.0.1 --port 5000 --name agente-unico --interval 5.	O agente registra, envia mÈtricas e pode encerrar normalmente com Ctrl+C, enviando BYE.	N„o realizado isoladamente / sem resultado registrado. A simulaÁ„o com dez agentes foi executada, mas n„o substitui este cen·rio individual.
-TrÍs agentes	Iniciar o servidor e executar trÍs inst‚ncias de agent.agent, cada uma com um nome diferente.	Os trÍs agentes aparecem registrados e enviam mÈtricas simultaneamente.	N„o realizado isoladamente / sem resultado registrado.
-Ctrl+C no agente	Com um agente individual em execuÁ„o, pressionar Ctrl+C no terminal do agente.	O agente envia BYE e o servidor o remove imediatamente.	N„o realizado isoladamente / sem resultado registrado. A saÌda por BYE foi observada nos agentes normais do simulador.
-Encerramento abrupto (kill -9 ou equivalente no Windows)	Iniciar um agente e encerrar seu processo abruptamente, sem permitir o envio de BYE.	O servidor remove o agente apÛs trÍs vezes o intervalo configurado.	N„o realizado isoladamente / sem resultado registrado. O timeout foi comprovado pelo agente 3 da simulaÁ„o e pelo teste autom·tico, mas n„o por encerramento forÁado de um processo de agente.
-Nome repetido	Registrar um nome j· utilizado a partir de outro socket/endereÁo.	O servidor responde ERROR com motivo name already in use.	Aprovado. Cen·rio verificado pelo teste autom·tico check_server.py.
-Servidor reiniciado	Iniciar um agente, reiniciar o servidor e observar as tentativas de registro do agente.	Ao receber ERROR not registered, o agente deve realizar novo REGISTER, preservando o n˙mero de sequÍncia.	N„o realizado / sem resultado registrado.
-Sem servidor	Executar o agente enquanto n„o h· servidor ativo no endereÁo e porta informados.	O agente realiza atÈ trÍs tentativas de registro, aguarda a resposta e encerra com uma mensagem clara se n„o houver resposta.	N„o realizado / sem resultado registrado.
-Simulador com perda	Executar o simulador com dez agentes e observar o agente 5.	O servidor identifica lacunas nos n˙meros de sequÍncia do agente 5.	Aprovado. Foram identificados trÍs pacotes perdidos nos eventos observados.
-Simulador com duplicados	Executar o simulador com dez agentes e observar o agente 7.	O servidor identifica e descarta mensagens com n˙mero de sequÍncia repetido.	Aprovado. Foram identificadas duplicaÁıes nos seq 4, 8 e 12.
-Mensagens inv·lidas	Executar o simulador e observar o agente 9; tambÈm enviar um datagrama inv·lido no teste autom·tico.	O servidor registra e ignora o datagrama sem encerrar o processo.	Aprovado. Os logs registraram datagramas inv·lidos e o servidor continuou funcionando.
-Dez agentes	Executar o comando de simulaÁ„o com --agents 10 --duration 60 --interval 5.	Dez agentes s„o registrados e os comportamentos especiais aparecem no log.	Aprovado. Os dez registros e os cinco comportamentos especiais foram observados.
-M·quinas diferentes	Executar o servidor em um computador e um ou mais agentes em outro computador, usando o IP da m·quina servidora.	O agente remoto consegue registrar e enviar mÈtricas ao servidor, respeitando a configuraÁ„o de rede e firewall.	N„o realizado. N„o foi registrada uma execuÁ„o em computadores diferentes. O teste foi feito localmente em 127.0.0.1.
-7. LimitaÁıes e observaÁıes dos testes
-Os testes foram realizados localmente, utilizando 127.0.0.1; a comunicaÁ„o entre computadores diferentes n„o foi comprovada.
-O protocolo n„o prevÍ resposta do servidor para uma mensagem METRICS v·lida. Por isso, a verificaÁ„o de perdas e duplicaÁıes foi feita pelos logs do servidor.
-O teste de duplicaÁ„o considera uma mensagem com n˙mero de sequÍncia igual ou inferior ao ˙ltimo n˙mero recebido como duplicada ou fora de ordem, conforme a implementaÁ„o do State.
-O agente 3 da simulaÁ„o n„o envia BYE, permitindo verificar a remoÁ„o por timeout.
-O teste automatizado de timeout utiliza intervalo de 1 segundo e aguarda aproximadamente 4,5 segundos antes de verificar a remoÁ„o.
-A aceitaÁ„o do REGISTER repetido pelo agente 8 foi observada. A preservaÁ„o dos contadores em um registro repetido n„o foi medida separadamente na simulaÁ„o apresentada.
-Os cen·rios marcados como N„o realizado precisam ser executados e atualizados nesta documentaÁ„o antes de afirmar que toda a lista de testes complementares foi concluÌda.
+O `check_server.py` inicia um servidor UDP de teste em uma porta dispon√≠vel e o encerra ao final; n√£o exige que um servidor manual j√° esteja aberto.
 
-8. Conclus„o
-Os testes automatizados do servidor e a simulaÁ„o com dez agentes foram executados com sucesso nos cen·rios registrados neste documento. Foram verificadas a resposta ao registro, a recusa de nome repetido, a rejeiÁ„o de mÈtricas de agentes n„o registrados, a identificaÁ„o de perdas e duplicaÁıes, a remoÁ„o por BYE, a remoÁ„o por timeout e a toler‚ncia a datagramas inv·lidos.
+### 3.3. Servidor e agente reais
 
-A simulaÁ„o tambÈm demonstrou os comportamentos especiais dos agentes 3, 5, 7, 8 e 9, alÈm do encerramento por BYE dos demais agentes.
+Terminal do servidor:
 
-Ainda existem testes complementares sem execuÁ„o registrada, especialmente os cen·rios isolados com um e trÍs agentes, Ctrl+C, encerramento abrupto, reinicializaÁ„o do servidor, ausÍncia de servidor e comunicaÁ„o entre m·quinas diferentes. Esses resultados devem ser atualizados apÛs a execuÁ„o correspondente.
+```bash
+python3 -m server.server --port 5000
+```
 
+Terminal do agente:
+
+```bash
+python3 -m agent.agent --host 127.0.0.1 --port 5000 --name agente-teste --interval 2
+```
+
+Para verificar o encerramento normal, pressione `Ctrl+C` no terminal do agente e observe o envio de `BYE` e sua remo√ß√£o do painel.
+
+### 3.4. Simulador de dez agentes
+
+Com o servidor ativo, em outro terminal:
+
+```bash
+python3 -m tests.simulate_agents --agents 10 --duration 60 --interval 2 --port 5000
+```
+
+A execu√ß√£o como m√≥dulo (`python3 -m tests.simulate_agents`) foi validada no macOS e corresponde √† forma de execu√ß√£o indicada no README. A execu√ß√£o direta de `python3 tests/simulate_agents.py` apresentou `ModuleNotFoundError: No module named 'agent'` nesse ambiente, enquanto a execu√ß√£o como m√≥dulo funcionou normalmente.
+
+## 4. Resultados dos testes automatizados
+
+### 4.1. Protocolo UDP, estado e painel
+
+Os tr√™s scripts foram executados no macOS e apresentaram a mensagem de aprova√ß√£o de todos os seus testes.
+
+| Arquivo | Quantidade | Funcionalidades verificadas | Resultado |
+|---|---:|---|---|
+| `tests/testProtocol.py` | 7 | Envio e recebimento, acentos, bytes n√£o UTF-8, JSON que n√£o √© objeto, mensagem grande, texto inv√°lido e timeout | **7/7 aprovados** |
+| `tests/testState.py` | 11 | Registro, endere√ßo de origem, sequ√™ncia, perdas, duplica√ß√µes, remo√ß√£o, expira√ß√£o, limite de leituras, concorr√™ncia e registro repetido | **11/11 aprovados** |
+| `tests/testDashboard.py` | 8 | Painel sem agentes, agente sem leituras, cabe√ßalhos, dados incompletos, √∫ltima leitura, estado real, dados simulados e atualiza√ß√£o em thread | **8/8 aprovados** |
+| **Total** | **26** | | **26/26 aprovados** |
+
+### 4.2. Testes autom√°ticos do servidor UDP
+
+O arquivo `tests/check_server.py` tamb√©m foi executado nos registros dispon√≠veis. Na execu√ß√£o em macOS, iniciou o servidor na porta UDP `55198` e terminou com a mensagem `TODOS OS TESTES PASSARAM!`.
+
+| Cen√°rio | Resultado esperado | Resultado observado |
+|---|---|---|
+| Registro de um agente novo | Resposta `OK` | **APROVADO** ‚Äî registro aceito |
+| Nome j√° utilizado por outro endere√ßo | Resposta `ERROR`, motivo `name already in use` | **APROVADO** ‚Äî segundo registro recusado |
+| `METRICS` de agente n√£o registrado | Resposta `ERROR not registered` | **APROVADO** ‚Äî mensagem rejeitada |
+| Lacunas nos n√∫meros de sequ√™ncia | Contabilizar mensagens perdidas | **APROVADO** ‚Äî log registrou 2 pacotes perdidos |
+| Sequ√™ncia repetida | Descartar e identificar duplica√ß√£o | **APROVADO** ‚Äî duplica√ß√£o registrada |
+| Sa√≠da por `BYE` | Remover o agente | **APROVADO** ‚Äî remo√ß√£o confirmada |
+| Inatividade do agente | Remover por *timeout* | **APROVADO** ‚Äî remo√ß√£o ap√≥s per√≠odo de espera |
+| Datagrama inv√°lido | Ignorar conte√∫do inv√°lido sem derrubar o servidor | **APROVADO** ‚Äî servidor continuou respondendo |
+
+Os resultados dos testes do servidor foram verificados tamb√©m por meio das mensagens registradas nos logs. Essas verifica√ß√µes n√£o foram somadas novamente aos 26 testes individuais da tabela anterior.
+
+## 5. Teste com servidor e agente reais
+
+Foi iniciado um servidor UDP na porta `5000`, com painel ativo, e um agente chamado `agente-teste`, configurado com intervalo de 2 segundos. O agente recebeu a confirma√ß√£o de registro na primeira tentativa e enviou m√©tricas reais de CPU e mem√≥ria, com n√∫meros de sequ√™ncia crescentes de `1` at√© `47`.
+
+O painel apresentou o agente registrado, seu endere√ßo de origem, hor√°rio da √∫ltima mensagem, CPU, mem√≥ria e contadores de mensagens recebidas, perdidas e duplicadas. Durante esse teste local, as leituras exibidas n√£o apresentaram perdas nem duplica√ß√µes.
+
+Ao pressionar `Ctrl+C`, o agente exibiu:
+
+```text
+[Sa√≠da] Sinal de interrup√ß√£o detectado. Encerrando agente...
+[Sa√≠da] Mensagem BYE enviada.
+Execu√ß√£o finalizada.
+```
+
+Em seguida, o painel do servidor voltou a mostrar `Nenhum agente registrado`, confirmando a remo√ß√£o do agente ap√≥s o encerramento normal.
+
+**Resultado: APROVADO.**
+
+## 6. Simula√ß√µes com m√∫ltiplos agentes
+
+Foram registradas simula√ß√µes com dez agentes, dura√ß√£o configurada de 60 segundos e dois intervalos diferentes: 5 segundos em uma execu√ß√£o no Windows e 2 segundos em uma execu√ß√£o no macOS. Em ambas, os resultados documentados demonstraram registro de m√∫ltiplos agentes e tratamento dos comportamentos especiais previstos no simulador.
+
+### 6.1. Comportamentos observados
+
+| Agente / situa√ß√£o | Comportamento simulado | Resultado observado |
+|---|---|---|
+| `agent-1` a `agent-10` | Registro de dez agentes | **APROVADO** ‚Äî dez confirma√ß√µes de registro |
+| `agent-3` | Parar de transmitir ap√≥s duas leituras, sem `BYE` | **APROVADO** ‚Äî removido por *timeout* |
+| `agent-5` | Omitir intencionalmente parte dos envios, mantendo a sequ√™ncia | **APROVADO** ‚Äî servidor contabilizou perdas |
+| `agent-7` | Reenviar sequ√™ncias j√° utilizadas | **APROVADO** ‚Äî duplica√ß√µes registradas |
+| `agent-8` | Repetir `REGISTER` usando o mesmo socket | **APROVADO** ‚Äî registro repetido aceito; preserva√ß√£o dos contadores tamb√©m foi coberta no teste de `State` |
+| `agent-9` | Enviar conte√∫do que n√£o √© JSON v√°lido | **APROVADO** ‚Äî datagramas inv√°lidos registrados sem derrubar o servidor |
+| Demais nove agentes | Encerrar enviando `BYE` | **APROVADO** ‚Äî nove sa√≠das registradas no servidor |
+
+Na execu√ß√£o registrada com intervalo de 5 segundos, os exemplos do log mostram tr√™s perdas do agente 5 at√© as sequ√™ncias 4, 7 e 10, e tr√™s duplica√ß√µes do agente 7 nas sequ√™ncias 4, 8 e 12. Esses valores s√£o referentes aos eventos documentados naquela execu√ß√£o, n√£o a um total fixo do simulador.
+
+### 6.2. Execu√ß√£o com intervalo de 2 segundos
+
+- **In√≠cio registrado:** 19:56:17.
+- **Fim registrado:** 19:57:18.
+- **Configura√ß√£o:** 10 agentes, dura√ß√£o de 60 segundos e intervalo de 2 segundos.
+- **Mensagem final:** `Simula√ß√£o finalizada.`
+- **C√≥digo de sa√≠da:** `0`, confirmado com `echo $?`.
+
+O servidor registrou oito ocorr√™ncias de perda do agente 5 at√© as sequ√™ncias 4, 7, 10, 14, 17, 20, 24 e 27 e duplica√ß√µes do agente 7 nas sequ√™ncias 4, 8, 12, 16, 20, 24 e 28. O agente 3 foi removido por *timeout* √†s 19:56:25. O agente 9 enviou datagramas inv√°lidos, e o servidor continuou processando as mensagens. Ao final, os outros nove agentes enviaram `BYE`.
+
+Trechos do `server.log` dessa execu√ß√£o:
+
+```text
+19:56:23 agent-7: seq 4 duplicado ou fora de ordem
+19:56:23 agent-5: 1 pacote(s) perdido(s) at√© o seq 4
+19:56:25 agent-3 ficou sem enviar nada, removendo (timeout)
+19:56:25 datagrama inv√°lido de 127.0.0.1:52730
+19:56:29 agent-5: 1 pacote(s) perdido(s) at√© o seq 7
+19:57:05 agent-5: 1 pacote(s) perdido(s) at√© o seq 24
+19:57:05 agent-7: seq 24 duplicado ou fora de ordem
+19:57:14 agent-7: seq 28 duplicado ou fora de ordem
+19:57:18 agent-1 saiu (BYE)
+19:57:18 agent-7 saiu (BYE)
+19:57:18 agent-10 saiu (BYE)
+19:57:18 agent-5 saiu (BYE)
+19:57:18 agent-6 saiu (BYE)
+19:57:18 agent-9 saiu (BYE)
+19:57:18 agent-8 saiu (BYE)
+19:57:18 agent-4 saiu (BYE)
+19:57:18 agent-2 saiu (BYE)
+```
+
+**Resultado: APROVADO.** A simula√ß√£o terminou normalmente e confirmou os comportamentos previstos. As perdas foram provocadas pelo simulador; elas n√£o representam uma medi√ß√£o da taxa real de perda da rede local.
+
+## 7. Outros cen√°rios de teste
+
+A tabela diferencia os cen√°rios observados dos que n√£o tiveram execu√ß√£o espec√≠fica registrada. **N√£o realizado** n√£o significa que o sistema falhou, mas que n√£o h√° evid√™ncia suficiente para atribuir aprova√ß√£o ao cen√°rio.
+
+| Cen√°rio | Situa√ß√£o | Observa√ß√£o |
+|---|---|---|
+| Um agente real conectado | **APROVADO** | `agente-teste` enviou 47 leituras no macOS |
+| Tr√™s agentes reais em processos separados | **N√ÉO REALIZADO isoladamente** | A simula√ß√£o com dez agentes usou threads, n√£o tr√™s processos reais independentes |
+| Encerramento de agente com `Ctrl+C` | **APROVADO** | `BYE` enviado; agente removido do painel |
+| Encerramento abrupto com `kill -9` | **N√ÉO REALIZADO isoladamente** | A remo√ß√£o por inatividade foi comprovada por simula√ß√£o e teste autom√°tico |
+| Nome duplicado | **APROVADO** | Recusa confirmada no teste do servidor |
+| Rein√≠cio do servidor com agente ativo | **N√ÉO REALIZADO** | A recupera√ß√£o autom√°tica do agente n√£o foi verificada nessa condi√ß√£o |
+| Agente iniciado sem servidor ativo | **N√ÉO REALIZADO** | O comportamento aparece no exemplo do README, mas n√£o h√° registro de execu√ß√£o espec√≠fica nos testes analisados |
+| Perdas de pacotes simuladas | **APROVADO** | Lacunas de sequ√™ncia do agente 5 identificadas |
+| Mensagens duplicadas simuladas | **APROVADO** | Sequ√™ncias repetidas do agente 7 identificadas |
+| Datagramas inv√°lidos | **APROVADO** | Servidor permaneceu operacional |
+| Dez agentes durante 60 segundos | **APROVADO** | Simula√ß√£o encerrada com c√≥digo de sa√≠da 0 |
+| Comunica√ß√£o entre computadores f√≠sicos distintos | **N√ÉO REALIZADO** | Os testes registrados utilizaram `127.0.0.1` |
+
+## 8. Confer√™ncia da documenta√ß√£o e do reposit√≥rio
+
+O comando de execu√ß√£o do simulador apresentado no README foi verificado utilizando a op√ß√£o `-m`, tanto com `--help` quanto na simula√ß√£o completa. Os scripts de testes tamb√©m foram executados a partir da raiz de uma c√≥pia clonada do projeto.
+
+Na confer√™ncia do Git, `git status` indicou a branch `main` sincronizada com `origin/main` e sem altera√ß√µes pendentes. O comando abaixo n√£o retornou arquivos tempor√°rios rastreados:
+
+```bash
+git ls-files | grep -E '(__pycache__/|\.pyc$|(^|/)server\.log$)'
+```
+
+O arquivo `server.log` foi gerado localmente para registrar eventos do servidor, mas n√£o estava inclu√≠do entre os arquivos rastreados pelo Git. Essa √© uma verifica√ß√£o do estado do reposit√≥rio no momento da consulta, n√£o uma garantia sobre futuras altera√ß√µes.
+
+## 9. Limita√ß√µes e observa√ß√µes
+
+- Os testes de comunica√ß√£o foram executados na pr√≥pria m√°quina, usando `127.0.0.1`; n√£o foi comprovado o funcionamento entre computadores f√≠sicos diferentes.
+- O UDP n√£o confirma individualmente a entrega de `METRICS`. O servidor identifica perdas e duplica√ß√µes a partir dos n√∫meros de sequ√™ncia recebidos.
+- Sequ√™ncias menores ou iguais √† √∫ltima sequ√™ncia aceita s√£o tratadas como duplicadas ou fora de ordem.
+- O servidor remove agentes ap√≥s receber `BYE` ou detectar inatividade pelo per√≠odo configurado.
+- Os testes com omiss√£o e duplica√ß√£o intencional de datagramas verificam a l√≥gica de tratamento do sistema, e n√£o a qualidade da rede f√≠sica.
+- Os cen√°rios que n√£o tiveram execu√ß√£o espec√≠fica registrada permanecem identificados como n√£o realizados.
+
+## 10. Conclus√£o
+
+Os testes automatizados de protocolo, estado e painel foram conclu√≠dos com **26 de 26 aprova√ß√µes**. O teste automatizado do servidor UDP confirmou o registro de agentes, a recusa de nomes duplicados, o tratamento de mensagens n√£o autorizadas e inv√°lidas, a identifica√ß√£o de perdas e duplica√ß√µes e as remo√ß√µes por `BYE` e *timeout*.
+
+O teste com agente real demonstrou a coleta e o envio peri√≥dico de CPU e mem√≥ria e a remo√ß√£o ap√≥s `Ctrl+C`. A simula√ß√£o com dez agentes tamb√©m foi conclu√≠da normalmente, com c√≥digo de sa√≠da `0`, e confirmou os comportamentos especiais de perda, duplica√ß√£o, registro repetido, datagramas inv√°lidos e timeout.
+
+A documenta√ß√£o de execu√ß√£o foi conferida, e a consulta ao Git n√£o identificou arquivos tempor√°rios rastreados. Os resultados apresentados validam os cen√°rios efetivamente testados, sem afirmar aprova√ß√£o para os casos que n√£o foram executados individualmente.
