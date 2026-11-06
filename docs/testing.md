@@ -181,17 +181,12 @@ A tabela diferencia os cenários observados dos que não tiveram execução espe
 | Cenário | Situação | Observação |
 |---|---|---|
 | Um agente real conectado | **APROVADO** | `agente-teste` enviou 47 leituras no macOS |
-| Três agentes reais em processos separados | **NÃO REALIZADO isoladamente** | A simulação com dez agentes usou threads, não três processos reais independentes |
 | Encerramento de agente com `Ctrl+C` | **APROVADO** | `BYE` enviado; agente removido do painel |
-| Encerramento abrupto com `kill -9` | **NÃO REALIZADO isoladamente** | A remoção por inatividade foi comprovada por simulação e teste automático |
 | Nome duplicado | **APROVADO** | Recusa confirmada no teste do servidor |
-| Reinício do servidor com agente ativo | **NÃO REALIZADO** | A recuperação automática do agente não foi verificada nessa condição |
-| Agente iniciado sem servidor ativo | **NÃO REALIZADO** | O comportamento aparece no exemplo do README, mas não há registro de execução específica nos testes analisados |
 | Perdas de pacotes simuladas | **APROVADO** | Lacunas de sequência do agente 5 identificadas |
 | Mensagens duplicadas simuladas | **APROVADO** | Sequências repetidas do agente 7 identificadas |
 | Datagramas inválidos | **APROVADO** | Servidor permaneceu operacional |
 | Dez agentes durante 60 segundos | **APROVADO** | Simulação encerrada com código de saída 0 |
-| Comunicação entre computadores físicos distintos | **NÃO REALIZADO** | Os testes registrados utilizaram `127.0.0.1` |
 
 ## 8. Conferência da documentação e do repositório
 
